@@ -5,6 +5,8 @@ import (
 	"os"
 	"strconv"
 	"time"
+
+	"github.com/leshchenko/pdf-extract/internal/logging"
 )
 
 // Config holds runtime configuration from environment variables.
@@ -18,6 +20,7 @@ type Config struct {
 	HTTPFetchTimeout  time.Duration
 	FileTTL           time.Duration
 	RenderDPI         int
+	LogLevel          string
 }
 
 func getenv(key, def string) string {
@@ -63,6 +66,11 @@ func Load() (*Config, error) {
 		dpi = 150
 	}
 
+	logLevel := getenv("LOG_LEVEL", "info")
+	if _, err := logging.ParseLevel(logLevel); err != nil {
+		return nil, err
+	}
+
 	return &Config{
 		PublicBaseURL:    base,
 		ListenAddr:       ":" + port,
@@ -73,5 +81,6 @@ func Load() (*Config, error) {
 		HTTPFetchTimeout: mustParseDuration(getenv("HTTP_FETCH_TIMEOUT", "120s"), 120*time.Second),
 		FileTTL:          mustParseDuration(getenv("FILE_TTL", "1h"), time.Hour),
 		RenderDPI:        dpi,
+		LogLevel:         logLevel,
 	}, nil
 }

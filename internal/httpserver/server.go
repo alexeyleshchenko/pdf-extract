@@ -25,11 +25,12 @@ import (
 var uuidFile = regexp.MustCompile(`^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$`)
 
 // NewRouter builds the HTTP handler.
-func NewRouter(cfg *config.Config, svc *Service) http.Handler {
+func NewRouter(cfg *config.Config, svc *Service, log *slog.Logger) http.Handler {
 	r := chi.NewRouter()
 	r.Use(middleware.RequestID)
 	r.Use(middleware.RealIP)
 	r.Use(middleware.Recoverer)
+	r.Use(AccessLog(log))
 	r.Use(middleware.Timeout(300 * time.Second))
 
 	r.Get("/health", healthHandler(cfg))
@@ -46,13 +47,13 @@ func NewRouter(cfg *config.Config, svc *Service) http.Handler {
 func processHandler(svc *Service) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
-			writeProblem(w, http.StatusMethodNotAllowed, "Method not allowed", "")
+			svc.failProcess(w, r, http.StatusMethodNotAllowed, "Method not allowed", "", nil)
 			return
 		}
 		ct := r.Header.Get("Content-Type")
 		mt, _, err := mime.ParseMediaType(ct)
 		if err != nil || mt == "" {
-			writeProblem(w, http.StatusBadRequest, "Missing Content-Type", "Content-Type header is required")
+			svc.failProcess(w, r, http.StatusBadRequest, "Missing Content-Type", "Content-Type header is required", err)
 			return
 		}
 		switch mt {
@@ -62,8 +63,8 @@ func processHandler(svc *Service) http.HandlerFunc {
 		case "multipart/form-data":
 			svc.HandleProcessMultipart(w, r)
 		default:
-			writeProblem(w, http.StatusUnsupportedMediaType, "Unsupported media type",
-				`use application/json or multipart/form-data`)
+			svc.failProcess(w, r, http.StatusUnsupportedMediaType, "Unsupported media type",
+				`use application/json or multipart/form-data`, nil)
 		}
 	}
 }
@@ -130,8 +131,9 @@ func ListenAndServe(cfg *config.Config, log *slog.Logger) error {
 		Cfg:         cfg,
 		FetchClient: NewFetchClient(cfg.HTTPFetchTimeout),
 		Store:       store,
+		Log:         log,
 	}
-	handler := NewRouter(cfg, svc)
+	handler := NewRouter(cfg, svc, log)
 	log.Info("listening", "addr", cfg.ListenAddr)
 	return http.ListenAndServe(cfg.ListenAddr, handler)
 }
@@ -151,8 +153,9 @@ func Run(cfg *config.Config, log *slog.Logger) (*Service, *http.Server, error) {
 		Cfg:         cfg,
 		FetchClient: NewFetchClient(cfg.HTTPFetchTimeout),
 		Store:       store,
+		Log:         log,
 	}
-	handler := NewRouter(cfg, svc)
+	handler := NewRouter(cfg, svc, log)
 
 	srv := &http.Server{
 		Addr:    cfg.ListenAddr,

@@ -28,6 +28,7 @@ go run ./cmd/pdf-extract
 | `HTTP_FETCH_TIMEOUT` | no | `120s` | Outgoing HTTP timeout when fetching by URL |
 | `FILE_TTL` | no | `1h` | How long before uploaded PDF and PNG are removed |
 | `RENDER_DPI` | no | `150` | DPI for `pdftoppm`; values outside **72–300** are treated as **150** |
+| `LOG_LEVEL` | no | `info` | Log verbosity: `debug`, `info`, `warn`, `error` (JSON lines to stdout) |
 
 ## API
 

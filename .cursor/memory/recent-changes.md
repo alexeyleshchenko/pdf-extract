@@ -1,6 +1,7 @@
 # Recent changes
 
-1. **CI/CD**: GitHub Actions mirrors ai-gateway — tests, GHCR push (`main` / `sha-*`), SSH deploy with `docker compose pull && up -d`.
+1. **Logging**: Structured JSON to stdout via `slog` — `LOG_LEVEL`, HTTP access logs (health at debug only), `process_ok` / `process_failed` on `/v1/process` (no full URLs or PDF text).
+2. **CI/CD**: GitHub Actions mirrors ai-gateway — tests, GHCR push (`main` / `sha-*`), SSH deploy with `docker compose pull && up -d`.
 2. **Compose**: Prebuilt `image` from GHCR (`GHCR_IMAGE` / `IMAGE_TAG`) instead of server-side `build` for routine deploys.
 3. **Ops**: Added `scripts/sync-vds-service.sh` for bootstrap/refresh of VDS directory; `deploy.sh` retained for emergency tarball+build.
 4. **Docs**: README, CONTRIBUTING, `.env.example`, VS Code tasks aligned with the above.
