@@ -2,6 +2,7 @@ package pdf
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"image"
 	"image/color"
@@ -20,8 +21,8 @@ var pagesLine = regexp.MustCompile(`(?m)^Pages:\s+(\d+)`)
 var encryptedLine = regexp.MustCompile(`(?m)^Encrypted:\s+(\S+)`)
 
 // PageCount returns the number of pages using pdfinfo.
-func PageCount(pdfPath string) (int, error) {
-	out, err := exec.Command("pdfinfo", pdfPath).CombinedOutput()
+func PageCount(ctx context.Context, pdfPath string) (int, error) {
+	out, err := exec.CommandContext(ctx, "pdfinfo", pdfPath).CombinedOutput()
 	if err != nil {
 		return 0, fmt.Errorf("pdfinfo: %w: %s", err, strings.TrimSpace(string(out)))
 	}
@@ -37,8 +38,8 @@ func PageCount(pdfPath string) (int, error) {
 }
 
 // IsEncrypted reports whether the PDF is password-protected.
-func IsEncrypted(pdfPath string) (bool, error) {
-	out, err := exec.Command("pdfinfo", pdfPath).CombinedOutput()
+func IsEncrypted(ctx context.Context, pdfPath string) (bool, error) {
+	out, err := exec.CommandContext(ctx, "pdfinfo", pdfPath).CombinedOutput()
 	if err != nil {
 		return false, fmt.Errorf("pdfinfo: %w: %s", err, strings.TrimSpace(string(out)))
 	}
@@ -50,14 +51,14 @@ func IsEncrypted(pdfPath string) (bool, error) {
 }
 
 // ExtractText extracts plain text per page, pages joined with "\n\n" (legacy parity).
-func ExtractText(pdfPath string) (string, error) {
-	n, err := PageCount(pdfPath)
+func ExtractText(ctx context.Context, pdfPath string) (string, error) {
+	n, err := PageCount(ctx, pdfPath)
 	if err != nil {
 		return "", err
 	}
 	var b strings.Builder
 	for i := 1; i <= n; i++ {
-		cmd := exec.Command("pdftotext", "-f", strconv.Itoa(i), "-l", strconv.Itoa(i), pdfPath, "-")
+		cmd := exec.CommandContext(ctx, "pdftotext", "-f", strconv.Itoa(i), "-l", strconv.Itoa(i), pdfPath, "-")
 		var out bytes.Buffer
 		cmd.Stdout = &out
 		cmd.Stderr = &out
@@ -74,7 +75,7 @@ func ExtractText(pdfPath string) (string, error) {
 }
 
 // StitchToPNG renders all pages with pdftoppm, optionally crops white margins, writes one vertical PNG.
-func StitchToPNG(pdfPath, outputPNG string, cropMargins bool, dpi int) error {
+func StitchToPNG(ctx context.Context, pdfPath, outputPNG string, cropMargins bool, dpi int) error {
 	tmpDir, err := os.MkdirTemp("", "pdfppm-*")
 	if err != nil {
 		return err
@@ -83,7 +84,7 @@ func StitchToPNG(pdfPath, outputPNG string, cropMargins bool, dpi int) error {
 
 	prefix := filepath.Join(tmpDir, "p")
 	args := []string{"-png", "-r", strconv.Itoa(dpi), pdfPath, prefix}
-	cmd := exec.Command("pdftoppm", args...)
+	cmd := exec.CommandContext(ctx, "pdftoppm", args...)
 	var stderr bytes.Buffer
 	cmd.Stderr = &stderr
 	if err := cmd.Run(); err != nil {

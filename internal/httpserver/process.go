@@ -1,6 +1,7 @@
 package httpserver
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -91,7 +92,7 @@ func validatePDFHeader(path string) error {
 	return nil
 }
 
-func (s *Service) runPipeline(pdfPath string, renderImage, cropMargins bool) (text string, imageID string, outPNG string, err error) {
+func (s *Service) runPipeline(ctx context.Context, pdfPath string, renderImage, cropMargins bool) (text string, imageID string, outPNG string, err error) {
 	st, statErr := os.Stat(pdfPath)
 	if statErr != nil {
 		return "", "", "", statErr
@@ -102,14 +103,14 @@ func (s *Service) runPipeline(pdfPath string, renderImage, cropMargins bool) (te
 	if err := validatePDFHeader(pdfPath); err != nil {
 		return "", "", "", err
 	}
-	enc, err := pdf.IsEncrypted(pdfPath)
+	enc, err := pdf.IsEncrypted(ctx, pdfPath)
 	if err != nil {
 		return "", "", "", err
 	}
 	if enc {
 		return "", "", "", fmt.Errorf("PDF is encrypted or password-protected")
 	}
-	text, err = pdf.ExtractText(pdfPath)
+	text, err = pdf.ExtractText(ctx, pdfPath)
 	if err != nil {
 		return "", "", "", err
 	}
@@ -118,7 +119,7 @@ func (s *Service) runPipeline(pdfPath string, renderImage, cropMargins bool) (te
 	}
 	id := uuid.NewString()
 	outPath := filepath.Join(s.Cfg.OutputDir, id+".png")
-	if err := pdf.StitchToPNG(pdfPath, outPath, cropMargins, s.Cfg.RenderDPI); err != nil {
+	if err := pdf.StitchToPNG(ctx, pdfPath, outPath, cropMargins, s.Cfg.RenderDPI); err != nil {
 		return "", "", "", err
 	}
 	return text, id, outPath, nil
@@ -159,7 +160,7 @@ func (s *Service) HandleProcessJSON(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	text, imgID, outPNG, err := s.runPipeline(pdfPath, renderImage, cropMargins)
+	text, imgID, outPNG, err := s.runPipeline(r.Context(), pdfPath, renderImage, cropMargins)
 	if err != nil {
 		_ = os.Remove(pdfPath)
 		if outPNG != "" {
@@ -246,7 +247,7 @@ func (s *Service) HandleProcessMultipart(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	text, imgID, outPNG, err := s.runPipeline(pdfPath, renderImage, cropMargins)
+	text, imgID, outPNG, err := s.runPipeline(r.Context(), pdfPath, renderImage, cropMargins)
 	if err != nil {
 		_ = os.Remove(pdfPath)
 		if outPNG != "" {
