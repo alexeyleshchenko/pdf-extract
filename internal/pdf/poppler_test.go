@@ -3,6 +3,8 @@ package pdf
 import (
 	"context"
 	"errors"
+	"os"
+	"os/exec"
 	"strings"
 	"testing"
 	"time"
@@ -10,8 +12,21 @@ import (
 
 const testPDF = "../../testdata/onepage.pdf"
 
+func requirePoppler(t *testing.T) {
+	t.Helper()
+	for _, bin := range []string{"pdfinfo", "pdftotext"} {
+		if _, err := exec.LookPath(bin); err != nil {
+			if os.Getenv("CI") == "true" {
+				t.Fatalf("%s not in PATH; install poppler-utils on the CI runner", bin)
+			}
+			t.Skipf("%s not in PATH; install poppler-utils to run this test", bin)
+		}
+	}
+}
+
 func TestExtractText_ContextTimeout(t *testing.T) {
 	t.Parallel()
+	requirePoppler(t)
 	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Microsecond)
 	defer cancel()
 	time.Sleep(2 * time.Microsecond) // ensure deadline passed
@@ -26,6 +41,7 @@ func TestExtractText_ContextTimeout(t *testing.T) {
 
 func TestPageCount_ContextTimeout(t *testing.T) {
 	t.Parallel()
+	requirePoppler(t)
 	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Microsecond)
 	defer cancel()
 	time.Sleep(2 * time.Microsecond)
@@ -40,6 +56,7 @@ func TestPageCount_ContextTimeout(t *testing.T) {
 
 func TestIsEncrypted_ContextTimeout(t *testing.T) {
 	t.Parallel()
+	requirePoppler(t)
 	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Microsecond)
 	defer cancel()
 	time.Sleep(2 * time.Microsecond)
@@ -54,6 +71,7 @@ func TestIsEncrypted_ContextTimeout(t *testing.T) {
 
 func TestExtractText_Success(t *testing.T) {
 	t.Parallel()
+	requirePoppler(t)
 	ctx := context.Background()
 	text, err := ExtractText(ctx, testPDF)
 	if err != nil {
@@ -65,6 +83,7 @@ func TestExtractText_Success(t *testing.T) {
 
 func TestPageCount_Success(t *testing.T) {
 	t.Parallel()
+	requirePoppler(t)
 	ctx := context.Background()
 	n, err := PageCount(ctx, testPDF)
 	if err != nil {

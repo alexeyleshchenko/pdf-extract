@@ -31,6 +31,9 @@ jobs:
           go-version-file: go.mod
           cache-dependency-path: go.sum
 
+      - name: Install Poppler
+        run: sudo apt-get update && sudo apt-get install -y poppler-utils
+
       - name: Run Go tests
         run: go test ./... -count=1
 
